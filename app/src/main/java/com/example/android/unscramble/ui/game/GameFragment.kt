@@ -21,6 +21,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.databinding.DataBindingUtil
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import com.example.android.unscramble.R
@@ -34,7 +35,6 @@ class GameFragment : Fragment() {
 
     private val viewModel: GameViewModel by viewModels()
 
-
     // Binding object instance with access to the views in the game_fragment.xml layout
     private lateinit var binding: GameFragmentBinding
 
@@ -47,21 +47,27 @@ class GameFragment : Fragment() {
             savedInstanceState: Bundle?
     ): View {
         // Inflate the layout XML file and return a binding object instance
-        binding = GameFragmentBinding.inflate(inflater, container, false)
+        binding = DataBindingUtil.inflate(inflater, R.layout.game_fragment,container, false)
         Log.d("GameFragment", "GameFragment created/re-created!")
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        binding.gameViewModel = viewModel
+
+        binding.maxNoOfWords = MAX_NO_OF_WORDS
+
+        // Specify the fragment view as the lifecycle owner of the binding.
+        // This is used so that the binding can observe LiveData updates
+        binding.lifecycleOwner = viewLifecycleOwner
 
         // Setup a click listener for the Submit and Skip buttons.
         binding.submit.setOnClickListener { onSubmitWord() }
         binding.skip.setOnClickListener { onSkipWord() }
         // Update the UI
-        updateNextWordOnScreen()
-        updateScoreOnScreen()
-        updateWordCountOnScreen()
+        // Observe the scrambledCharArray LiveData, passing in the LifecycleOwner and the observer.
+
     }
 
     /*
@@ -70,7 +76,7 @@ class GameFragment : Fragment() {
     private fun showFinalScoreDialog() {
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(getString(R.string.congratulations))
-            .setMessage(getString(R.string.you_scored, viewModel.score))
+            .setMessage(getString(R.string.you_scored, viewModel.score.value))
             .setCancelable(false)
             .setNegativeButton(getString(R.string.exit)) { _, _ ->
                 exitGame()
@@ -90,20 +96,13 @@ class GameFragment : Fragment() {
         if (viewModel.isUserWordCorrect(binding.textInputEditText.text.toString()))
         {
             setErrorTextField(false)
-            binding.score.text = viewModel.score.toString()
-            binding.wordCount.text = viewModel.currentWordCount.toString()
-            if (viewModel.nextWord()) {
-                updateWordCountOnScreen()
-                updateScoreOnScreen()
-                updateNextWordOnScreen()
-            } else {
+            if (!viewModel.nextWord()) {
                 showFinalScoreDialog()
             }
         } else
         {
             setErrorTextField(true)
         }
-
     }
 
     /*
@@ -113,8 +112,6 @@ class GameFragment : Fragment() {
     private fun onSkipWord() {
         if (viewModel.nextWord()) {
             setErrorTextField(false)
-            updateNextWordOnScreen()
-            binding.wordCount.text = viewModel.currentWordCount.toString()
         } else {
             showFinalScoreDialog()
         }
@@ -129,10 +126,6 @@ class GameFragment : Fragment() {
     private fun restartGame() {
         setErrorTextField(false)
         viewModel.reinitializeData()
-
-        updateWordCountOnScreen()
-        updateScoreOnScreen()
-        updateNextWordOnScreen()
     }
 
     /*
@@ -154,31 +147,4 @@ class GameFragment : Fragment() {
             binding.textInputEditText.text = null
         }
     }
-
-    /*
-     * Displays the next scrambled word on screen.
-     */
-    private fun updateNextWordOnScreen() {
-        binding.textViewUnscrambledWord.text = viewModel.currentScrambledWord
-    }
-
-    /*
-     * Displays the score on screen.
-     */
-    private fun updateScoreOnScreen() {
-        binding.score.text = viewModel.score.toString()
-    }
-
-    /*
-     * Displays word count on screen.
-     */
-    private fun updateWordCountOnScreen() {
-        binding.wordCount.text = viewModel.currentWordCount.toString()
-    }
-
-    override fun onDetach() {
-        super.onDetach()
-        Log.d("GameFragment", "GameFragment destroyed!")
-    }
-
 }
